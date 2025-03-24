@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KulaFlow Prompt Generator</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --primary-dark: #2980b9;
+            --secondary-color: #2ecc71;
+            --secondary-dark: #27ae60;
+            --text-color: #2c3e50;
+            --bg-light: #f9f9f9;
+            --bg-medium: #ecf0f1;
+            --border-color: #dfe6e9;
+            --accent-color: #e74c3c;
+            --shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            --radius: 8px;
+            --mono-font: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            max-width: 850px;
+            margin: 0 auto;
+            padding: 25px;
+            background-color: var(--bg-light);
+        }
+        
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 35px;
+            font-weight: 600;
+            font-size: 32px;
+        }
+        
+        h3 {
+            color: var(--primary-dark);
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            background-color: white;
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .section-title {
+            font-weight: 500;
+            color: var(--primary-dark);
+            margin: 0;
+        }
+        
+        .code-block {
+            background-color: var(--bg-medium);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 15px;
+            font-family: var(--mono-font);
+            white-space: pre-wrap;
+            margin-bottom: 20px;
+            position: relative;
+            box-shadow: var(--shadow);
+        }
+        
+        .code-block pre, 
+        .code-block textarea {
+            font-family: var(--mono-font);
+            font-size: 14px;
+        }
+        
+        .code-block textarea {
+            width: 100%;
+            min-height: 90px;
+            border: none;
+            background: transparent;
+            resize: vertical;
+            outline: none;
+            overflow: auto;
+        }
+        
+        .template-container {
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        .prompt-preview-container {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .prompt-preview {
+            flex-grow: 1;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 20px;
+            background-color: white;
+            box-shadow: var(--shadow);
+            transition: box-shadow 0.2s;
+            font-family: var(--mono-font);
+            line-height: 1.7;
+        }
+        
+        .action-btn {
+            background-color: var(--bg-medium);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 8px 14px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 8px;
+            align-self: flex-end;
+            transition: all 0.2s;
+        }
+        
+        #add-wildcard-btn {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            margin-top: 0;
+            background-color: var(--secondary-color);
+            color: white;
+            border-color: var(--secondary-dark);
+        }
+        
+        #add-wildcard-btn:hover {
+            background-color: var(--secondary-dark);
+        }
+        
+        #randomize-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-dark);
+        }
+        
+        #randomize-btn:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-1px);
+        }
+        
+        .wildcards-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        
+        .wildcard-badge {
+            background-color: #e9f5ff;
+            border: 1px solid #c5e1ff;
+            border-radius: 20px;
+            padding: 5px 14px;
+            font-size: 14px;
+            color: var(--primary-color);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: all 0.2s;
+        }
+        
+        .wildcard-badge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .prompt-preview select {
+            padding: 5px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            background-color: var(--bg-light);
+            margin: 0 5px;
+            font-size: 0.9em;
+            cursor: pointer;
+        }
+        
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: var(--shadow);
+        }
+        
+        .btn:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .output-container {
+            margin-top: 35px;
+        }
+        
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: var(--bg-light);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .copy-btn:hover {
+            background-color: var(--bg-medium);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        #output-text {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: var(--mono-font);
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>KulaFlow Prompt Generator</h1>
+    
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">Available Wildcards</h2>
+        </div>
+        <div class="wildcards-container" id="wildcards-container">
+            <!-- Wildcard badges will be added dynamically -->
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">Template Editor</h2>
+        </div>
+        <div class="code-block template-container">
+            <textarea id="template-input" placeholder="Enter your prompt template with [Variable X] placeholders">a cute [Variable 1] in look out at [Variable 2] weather</textarea>
+            <button id="add-wildcard-btn" class="action-btn">Add Wildcard</button>
+        </div>
+    </div>
+    
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">Preview &amp; Variables</h2>
+        </div>
+        <div class="prompt-preview-container">
+            <div class="prompt-preview" id="prompt-preview">
+                <!-- Dynamic preview will be inserted here -->
+            </div>
+            <button id="randomize-btn" class="action-btn">Randomize</button>
+        </div>
+        
+        <button id="generate-btn" class="btn">Generate Prompt</button>
+    </div>
+    
+    <div id="output-container" class="output-container hidden section">
+        <div class="section-header">
+            <h2 class="section-title">Generated Prompt</h2>
+        </div>
+        <div class="code-block" id="output-block">
+            <pre id="output-text"></pre>
+            <button class="copy-btn" id="copy-btn">Copy</button>
+        </div>
+    </div>
+    
+    <script>
+        // Store the loaded wildcards data
+        const wildcards = {};
+        
+        // Function to load wildcard files
+        async function loadWildcards() {
+            try {
+                const response = await fetch('/wildcards');
+                const files = await response.json();
+                
+                const loadPromises = files.map(async (file) => {
+                    if (file.endsWith('.txt')) {
+                        const name = file.replace('.txt', '');
+                        const fileResponse = await fetch(`/wildcards/${file}`);
+                        const text = await fileResponse.text();
+                        const items = text.split('\n')
+                            .map(line => line.trim())
+                            .filter(line => line && !line.startsWith('#'));
+                        
+                        wildcards[name] = items;
+                        return { name, count: items.length };
+                    }
+                    return null;
+                });
+                
+                const loadedWildcards = (await Promise.all(loadPromises)).filter(Boolean);
+                displayWildcards(loadedWildcards);
+                updatePromptPreview();
+            } catch (error) {
+                console.error('Error loading wildcards:', error);
+                // Fallback: Load directly from known files if server endpoint fails
+                loadWildcardsDirectly();
+            }
+        }
+        
+        // Fallback function to load wildcards directly
+        async function loadWildcardsDirectly() {
+            const knownWildcards = ['animals', 'weather', 'textures', 'woman'];
+            
+            const loadPromises = knownWildcards.map(async (name) => {
+                try {
+                    const fileResponse = await fetch(`/wildcards/${name}.txt`);
+                    const text = await fileResponse.text();
+                    const items = text.split('\n')
+                        .map(line => line.trim())
+                        .filter(line => line && !line.startsWith('#'));
+                    
+                    wildcards[name] = items;
+                    return { name, count: items.length };
+                } catch (err) {
+                    console.error(`Error loading ${name}.txt:`, err);
+                    return null;
+                }
+            });
+            
+            const loadedWildcards = (await Promise.all(loadPromises)).filter(Boolean);
+            displayWildcards(loadedWildcards);
+            updatePromptPreview();
+        }
+        
+        // Display available wildcards as badges
+        function displayWildcards(wildcardsList) {
+            const container = document.getElementById('wildcards-container');
+            container.innerHTML = '';
+            
+            wildcardsList.forEach(({ name, count }) => {
+                const badge = document.createElement('div');
+                badge.className = 'wildcard-badge';
+                badge.textContent = `${name} (${count})`;
+                container.appendChild(badge);
+            });
+        }
+        
+        // Parse template to find variable placeholders
+        function parseTemplate(template) {
+            const regex = /\[(.*?)\]/g;
+            const variables = [];
+            let match;
+            
+            while ((match = regex.exec(template)) !== null) {
+                variables.push({
+                    fullMatch: match[0],
+                    name: match[1],
+                    position: match.index
+                });
+            }
+            
+            return variables;
+        }
+        
+        // Update the prompt preview with dropdowns
+        function updatePromptPreview() {
+            const template = document.getElementById('template-input').value;
+            const previewElement = document.getElementById('prompt-preview');
+            const variables = parseTemplate(template);
+            
+            if (variables.length === 0) {
+                previewElement.textContent = template;
+                return;
+            }
+            
+            let htmlContent = '';
+            let lastIndex = 0;
+            
+            variables.forEach((variable, index) => {
+                // Add text before the variable
+                htmlContent += template.substring(lastIndex, variable.position);
+                
+                // Add dropdown for the variable
+                htmlContent += createDropdown(`variable-${index}`, variable.name);
+                
+                lastIndex = variable.position + variable.fullMatch.length;
+            });
+            
+            // Add remaining text after the last variable
+            htmlContent += template.substring(lastIndex);
+            
+            previewElement.innerHTML = htmlContent;
+        }
+        
+        // Create a dropdown for variable selection
+        function createDropdown(id, variableName) {
+            let html = `<select id="${id}" data-variable="${variableName}">`;
+            
+            Object.keys(wildcards).forEach(wildcard => {
+                html += `<option value="${wildcard}">${wildcard}</option>`;
+            });
+            
+            html += '</select>';
+            return html;
+        }
+        
+        // Generate a final prompt
+        function generatePrompt() {
+            const template = document.getElementById('template-input').value;
+            const variables = parseTemplate(template);
+            
+            let finalPrompt = template;
+            
+            // Process variables in reverse order to avoid position shifting
+            for (let i = variables.length - 1; i >= 0; i--) {
+                const variable = variables[i];
+                const dropdown = document.getElementById(`variable-${i}`);
+                
+                if (dropdown) {
+                    const selectedWildcard = dropdown.value;
+                    const wildcardItems = wildcards[selectedWildcard];
+                    
+                    if (wildcardItems && wildcardItems.length > 0) {
+                        const randomIndex = Math.floor(Math.random() * wildcardItems.length);
+                        const randomValue = wildcardItems[randomIndex];
+                        
+                        finalPrompt = finalPrompt.substring(0, variable.position) + 
+                                     randomValue + 
+                                     finalPrompt.substring(variable.position + variable.fullMatch.length);
+                    }
+                }
+            }
+            
+            return finalPrompt;
+        }
+        
+        // Display the generated prompt
+        function displayOutput(text) {
+            const outputContainer = document.getElementById('output-container');
+            const outputText = document.getElementById('output-text');
+            
+            outputText.textContent = text;
+            outputContainer.classList.remove('hidden');
+        }
+        
+        // Copy text to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const copyBtn = document.getElementById('copy-btn');
+                const originalText = copyBtn.textContent;
+                
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        }
+        
+        // Add [W] wildcard to template
+        function addWildcardToTemplate() {
+            const templateInput = document.getElementById('template-input');
+            const cursorPos = templateInput.selectionStart;
+            const currentText = templateInput.value;
+            
+            // Text to insert (with comma and space)
+            const insertText = ", [W]";
+            
+            // Insert ", [W]" at cursor position or append to end
+            const newText = cursorPos !== undefined && cursorPos >= 0
+                ? currentText.substring(0, cursorPos) + insertText + currentText.substring(cursorPos)
+                : currentText + insertText;
+            
+            templateInput.value = newText;
+            
+            // Update the cursor position and focus the textarea
+            if (cursorPos !== undefined) {
+                templateInput.focus();
+                templateInput.selectionStart = cursorPos + insertText.length;
+                templateInput.selectionEnd = cursorPos + insertText.length;
+            }
+            
+            // Update the preview
+            updatePromptPreview();
+        }
+        
+        // Randomize dropdowns selections
+        function randomizeWildcards() {
+            const dropdowns = document.querySelectorAll('.prompt-preview select');
+            const wildcardKeys = Object.keys(wildcards);
+            
+            if (wildcardKeys.length === 0) {
+                console.warn('No wildcards available for randomization');
+                return;
+            }
+            
+            dropdowns.forEach(dropdown => {
+                const randomIndex = Math.floor(Math.random() * wildcardKeys.length);
+                dropdown.value = wildcardKeys[randomIndex];
+            });
+        }
+        
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Load wildcards when page loads
+            loadWildcards();
+            
+            // Update preview when template changes
+            document.getElementById('template-input').addEventListener('input', updatePromptPreview);
+            
+            // Generate button click handler
+            document.getElementById('generate-btn').addEventListener('click', () => {
+                const finalPrompt = generatePrompt();
+                displayOutput(finalPrompt);
+            });
+            
+            // Copy button click handler
+            document.getElementById('copy-btn').addEventListener('click', () => {
+                const text = document.getElementById('output-text').textContent;
+                copyToClipboard(text);
+            });
+            
+            // Add Wildcard button click handler
+            document.getElementById('add-wildcard-btn').addEventListener('click', addWildcardToTemplate);
+            
+            // Randomize button click handler
+            document.getElementById('randomize-btn').addEventListener('click', randomizeWildcards);
+        });
+    </script>
+</body>
+</html>
