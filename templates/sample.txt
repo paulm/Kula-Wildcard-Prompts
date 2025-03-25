@@ -1,0 +1,3 @@
+a beautiful [animal]
+a beautiful [animal] in [weather], [setting], [artists]
+a beautiful [animal] in [weather], [setting], [artists], [material], [color]

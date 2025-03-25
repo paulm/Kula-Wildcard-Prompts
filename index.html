@@ -243,6 +243,81 @@
             opacity: 1;
         }
         
+        .template-selector-container {
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .selector-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .template-selector {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            background-color: white;
+            font-size: 14px;
+        }
+        
+        .template-navigation {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 5px;
+        }
+        
+        .template-number {
+            display: inline-block;
+            min-width: 28px;
+            height: 28px;
+            line-height: 28px;
+            text-align: center;
+            background-color: var(--bg-medium);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .template-number:hover {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+        
+        .template-number.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-dark);
+            font-weight: bold;
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            padding: 8px;
+            background-color: #fdeaea;
+            border: 1px solid #f5c6cb;
+            border-radius: var(--radius);
+        }
+        
+        .success-message {
+            color: #2ecc71;
+            font-size: 14px;
+            padding: 8px;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: var(--radius);
+        }
+        
         .prompt-preview select {
             padding: 5px 10px;
             border: 1px solid var(--border-color);
@@ -328,6 +403,19 @@
     <div class="section">
         <div class="section-header">
             <h2 class="section-title">Template Editor</h2>
+        </div>
+        <div class="template-selector-container">
+            <div class="selector-group">
+                <label for="template-selector">Template File:</label>
+                <select id="template-selector" class="template-selector">
+                    <option value="">-- Select Template --</option>
+                    <!-- Template options will be added dynamically -->
+                </select>
+                <button id="debug-templates-btn" class="action-btn-small">Debug Templates</button>
+            </div>
+            <div id="template-navigation" class="template-navigation">
+                <!-- Template navigation numbers will be added dynamically -->
+            </div>
         </div>
         <div class="code-block template-container">
             <textarea id="template-input" placeholder="Enter your prompt template with [W] placeholders">a cute [W] in a [W], [W]</textarea>
@@ -861,9 +949,251 @@
             });
         }
 
+        // Store loaded template data
+        let templateData = {};
+        let currentTemplateFile = '';
+        let currentTemplateIndex = 0;
+        
+        // Load template files from the server
+        async function loadTemplates() {
+            try {
+                console.log('Fetching template files...');
+                const response = await fetch('/templates');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                console.log('Response content type:', contentType);
+                
+                const files = await response.json();
+                console.log('Received template files:', files);
+                
+                const selector = document.getElementById('template-selector');
+                console.log('Template selector element:', selector);
+                
+                // Clear existing options (except the first default option)
+                while (selector.options.length > 1) {
+                    selector.remove(1);
+                }
+                
+                // Add template files to the dropdown
+                if (Array.isArray(files) && files.length > 0) {
+                    files.forEach(file => {
+                        const option = document.createElement('option');
+                        option.value = file;
+                        option.textContent = file.replace('.txt', '');
+                        selector.appendChild(option);
+                        console.log('Added template option:', file);
+                    });
+                } else {
+                    console.warn('No template files found or files is not an array:', files);
+                }
+                
+                console.log('Loaded template files:', files);
+            } catch (error) {
+                console.error('Error loading templates:', error.message);
+                console.error('Stack trace:', error.stack);
+            }
+        }
+        
+        // Load a specific template file and display the first template
+        async function loadTemplateFile(filename) {
+            console.log('Loading template file:', filename);
+            
+            if (!filename) {
+                // Clear the navigation if no template is selected
+                document.getElementById('template-navigation').innerHTML = '';
+                return;
+            }
+            
+            try {
+                console.log(`Fetching template file: /templates/${filename}`);
+                const response = await fetch(`/templates/${filename}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                console.log('Response content type:', contentType);
+                
+                const data = await response.json();
+                console.log('Template file data:', data);
+                
+                // Store the template data
+                templateData = data;
+                currentTemplateFile = filename;
+                currentTemplateIndex = 0;
+                
+                // Display template navigation numbers
+                updateTemplateNavigation(data.lines.length);
+                
+                // Load the first template
+                if (data.lines && data.lines.length > 0) {
+                    loadTemplateAtIndex(0);
+                } else {
+                    console.warn('No template lines found in:', data);
+                }
+                
+                console.log(`Loaded template file ${filename} with ${data.lines ? data.lines.length : 0} templates`);
+            } catch (error) {
+                console.error(`Error loading template file ${filename}:`, error.message);
+                console.error('Stack trace:', error.stack);
+                
+                // Display an error message
+                const navigation = document.getElementById('template-navigation');
+                navigation.innerHTML = `<div class="error-message">Error loading template: ${error.message}</div>`;
+            }
+        }
+        
+        // Update template navigation numbers
+        function updateTemplateNavigation(count) {
+            const navigation = document.getElementById('template-navigation');
+            navigation.innerHTML = '';
+            
+            for (let i = 0; i < count; i++) {
+                const numberBtn = document.createElement('span');
+                numberBtn.className = 'template-number';
+                numberBtn.textContent = (i + 1).toString();
+                numberBtn.dataset.index = i;
+                
+                // Highlight the active template
+                if (i === currentTemplateIndex) {
+                    numberBtn.classList.add('active');
+                }
+                
+                // Add click handler
+                numberBtn.addEventListener('click', function() {
+                    const index = parseInt(this.dataset.index);
+                    loadTemplateAtIndex(index);
+                });
+                
+                navigation.appendChild(numberBtn);
+            }
+        }
+        
+        // Load a template at a specific index
+        function loadTemplateAtIndex(index) {
+            if (!templateData.lines || index >= templateData.lines.length) {
+                return;
+            }
+            
+            // Update the current template index
+            currentTemplateIndex = index;
+            
+            // Update the template input field
+            const templateInput = document.getElementById('template-input');
+            templateInput.value = templateData.lines[index];
+            
+            // Update the preview
+            updatePromptPreview();
+            
+            // Update the active navigation button
+            document.querySelectorAll('.template-number').forEach(btn => {
+                if (parseInt(btn.dataset.index) === index) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            console.log(`Loaded template at index ${index}: ${templateData.lines[index]}`);
+        }
+        
         document.addEventListener('DOMContentLoaded', () => {
             // Load wildcards when page loads
             loadWildcards();
+            
+            // Load template files
+            loadTemplates();
+            
+            // Template selector change handler
+            document.getElementById('template-selector').addEventListener('change', function() {
+                loadTemplateFile(this.value);
+            });
+            
+            // Debug templates button click handler
+            document.getElementById('debug-templates-btn').addEventListener('click', async function() {
+                try {
+                    // Add sample templates directly to the dropdown for testing
+                    const selector = document.getElementById('template-selector');
+                    
+                    // Clear existing options (except the first default option)
+                    while (selector.options.length > 1) {
+                        selector.remove(1);
+                    }
+                    
+                    // Add hardcoded sample templates for debugging
+                    const debugTemplates = ['sample.txt', 'AAPROMPTS.txt', 'manakula.txt'];
+                    
+                    debugTemplates.forEach(file => {
+                        const option = document.createElement('option');
+                        option.value = file;
+                        option.textContent = file.replace('.txt', '');
+                        selector.appendChild(option);
+                        console.log('Added debug template option:', file);
+                    });
+                    
+                    // Show a notification
+                    const navigation = document.getElementById('template-navigation');
+                    navigation.innerHTML = '<div class="success-message">Added sample templates for debugging</div>';
+                    
+                    console.log('Added debug template files to dropdown');
+                    
+                    // Add direct loading function that bypasses API
+                    selector.addEventListener('change', async function() {
+                        const selectedFile = this.value;
+                        if (!selectedFile) return;
+                        
+                        try {
+                            // Hardcoded template content for demo purposes
+                            let templateLines = [];
+                            
+                            if (selectedFile === 'sample.txt') {
+                                templateLines = [
+                                    "a beautiful [animal] in [weather], [setting], [artists]",
+                                    "a beautiful [animal] in [weather], [setting], [artists], [material], [color]"
+                                ];
+                            } else if (selectedFile === 'AAPROMPTS.txt') {
+                                templateLines = [
+                                    "a beautiful [zoom][medium], topography, mountain range, aerial perspective, atmospheric depth, layers, organic, sparkles, an ultrafine hyperdetailed, white background,[artists],[color],[objects]",
+                                    "a beautiful [zoom][medium] of Hawaii, stunningly beautiful paradise, lush green valley, vibrant blue waters, golden sandy beaches, majestic mountains, dotted with cascading waterfalls, framed by towering palm trees, koa trees, bright sunshine, bright vibrant hues of nature, culture and vibrant nightlife, [artists], [color], [objects]",
+                                    "a beautiful [zoom][medium] of Hawaii, enchanting paradise, lush green jungle, clear turquoise waters, bright white sand beaches, sunset, night sky, illuminated, tiki torches, twinkling lights, cozy and romantic atmosphere, flickering flames of the torches cast a warm and inviting glow, lights add a sparkle of magic to the night, stunning natural beauty, [artists], [color], [objects]"
+                                ];
+                            } else if (selectedFile === 'manakula.txt') {
+                                templateLines = [
+                                    "a beautiful [animal], symmetrical, graceful, elegant, sophisticated, pine trees, aspen trees, bright colors, colorful, marijuana leaves, butterflies, Flourishing, full color spectrums, global illumination, radiant light, detailed and intricate environment, detailed lace underwear, summer forest, lush mountains, modern, spirit, lake, stars, campfire, flourishing, antlers, joyous, cozy, lights, fireflies, moose, birds, flock, steaming,"
+                                ];
+                            }
+                            
+                            // Update UI
+                            updateTemplateNavigation(templateLines.length);
+                            
+                            // Store template data
+                            templateData = {
+                                filename: selectedFile,
+                                lines: templateLines
+                            };
+                            currentTemplateFile = selectedFile;
+                            currentTemplateIndex = 0;
+                            
+                            // Load the first template
+                            if (templateLines.length > 0) {
+                                loadTemplateAtIndex(0);
+                            }
+                            
+                            console.log(`Loaded hardcoded template file ${selectedFile} with ${templateLines.length} templates`);
+                        } catch (error) {
+                            console.error('Error in direct template loading:', error);
+                            navigation.innerHTML = `<div class="error-message">Error loading template: ${error.message}</div>`;
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error in debug templates function:', error);
+                }
+            });
             
             // Update preview when template changes
             document.getElementById('template-input').addEventListener('input', updatePromptPreview);

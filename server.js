@@ -12,6 +12,53 @@ app.use(express.json());
 // Serve static files
 app.use(express.static(__dirname));
 
+// Add route to list template files
+app.get('/templates', (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    
+    const templatesDir = path.join(__dirname, 'templates');
+    console.log('Looking for templates in:', templatesDir);
+    
+    fs.readdir(templatesDir, (err, files) => {
+        if (err) {
+            console.error('Error reading templates directory:', err);
+            return res.status(500).json({ error: 'Failed to list templates' });
+        }
+        
+        console.log('All files in templates directory:', files);
+        
+        // Filter to only .txt files
+        const txtFiles = files.filter(file => file.endsWith('.txt') && !file.startsWith('.'));
+        console.log('Filtered template files:', txtFiles);
+        
+        res.json(txtFiles);
+    });
+});
+
+// Add route to get template file content
+app.get('/templates/:filename', (req, res) => {
+    const fs = require('fs');
+    const path = require('path');
+    
+    const filename = req.params.filename;
+    const filePath = path.join(__dirname, 'templates', filename);
+    
+    fs.readFile(filePath, 'utf8', (err, data) => {
+        if (err) {
+            console.error(`Error reading template file ${filename}:`, err);
+            return res.status(500).json({ error: `Failed to read template file: ${err.message}` });
+        }
+        
+        // Split the content into lines
+        const lines = data.split('\n')
+            .map(line => line.trim())
+            .filter(line => line && !line.startsWith('#'));
+        
+        res.json({ filename, lines });
+    });
+});
+
 // Add route to list wildcard files and folders
 app.get('/wildcards', (req, res) => {
     const fs = require('fs');

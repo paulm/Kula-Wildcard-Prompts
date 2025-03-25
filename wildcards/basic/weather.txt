@@ -1,0 +1,18 @@
+snow
+rain
+drizzle
+fog
+hail
+sleet
+thunderstorm
+sunshine
+cloudy
+overcast
+windy
+blizzard
+heatwave
+tornado
+mist
+sunny
+cloudy
+starry night
