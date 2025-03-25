@@ -12,21 +12,67 @@ app.use(express.json());
 // Serve static files
 app.use(express.static(__dirname));
 
-// Add route to list wildcard files
+// Add route to list wildcard files and folders
 app.get('/wildcards', (req, res) => {
     const fs = require('fs');
     const path = require('path');
     
     const wildcardDir = path.join(__dirname, 'wildcards');
-    fs.readdir(wildcardDir, (err, files) => {
+    
+    // Function to check if a path is a directory
+    const isDirectory = (path) => {
+        try {
+            return fs.statSync(path).isDirectory();
+        } catch (err) {
+            return false;
+        }
+    };
+    
+    // Read the main wildcards directory
+    fs.readdir(wildcardDir, (err, items) => {
         if (err) {
             console.error('Error reading wildcards directory:', err);
             return res.status(500).json({ error: 'Failed to list wildcards' });
         }
         
-        // Filter to only .txt files
-        const txtFiles = files.filter(file => file.endsWith('.txt') && !file.startsWith('.'));
-        res.json(txtFiles);
+        // Structure to hold the result
+        const result = {
+            folders: {},
+            files: []
+        };
+        
+        // Process each item (could be a file or folder)
+        items.forEach(item => {
+            const itemPath = path.join(wildcardDir, item);
+            
+            // Skip hidden files
+            if (item.startsWith('.')) {
+                return;
+            }
+            
+            // Check if it's a directory
+            if (isDirectory(itemPath)) {
+                // Read the directory contents
+                try {
+                    const folderContents = fs.readdirSync(itemPath);
+                    // Filter to only .txt files
+                    const txtFiles = folderContents.filter(file => 
+                        file.endsWith('.txt') && !file.startsWith('.')
+                    );
+                    
+                    // Add the folder and its files to the result
+                    result.folders[item] = txtFiles;
+                } catch (folderErr) {
+                    console.error(`Error reading folder ${item}:`, folderErr);
+                }
+            } 
+            // Or a text file in the root wildcards directory
+            else if (item.endsWith('.txt')) {
+                result.files.push(item);
+            }
+        });
+        
+        res.json(result);
     });
 });
 

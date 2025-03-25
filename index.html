@@ -112,6 +112,12 @@
             margin-bottom: 25px;
         }
         
+        .buttons-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
         .prompt-preview {
             flex-grow: 1;
             border: 1px solid var(--border-color);
@@ -165,6 +171,32 @@
             transform: translateY(-1px);
         }
         
+        .folders-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .folder-item {
+            display: flex;
+            align-items: center;
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 8px 12px;
+        }
+        
+        .folder-name {
+            margin-left: 8px;
+            font-weight: 500;
+            color: var(--primary-dark);
+        }
+        
+        .folder-checkbox {
+            margin-right: 5px;
+        }
+        
         .wildcards-container {
             display: flex;
             flex-wrap: wrap;
@@ -181,11 +213,34 @@
             color: var(--primary-color);
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             transition: all 0.2s;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
         }
         
         .wildcard-badge:hover {
             transform: translateY(-2px);
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            background-color: #d4ebff;
+        }
+        
+        .wildcard-badge[data-folder] {
+            position: relative;
+        }
+        
+        .wildcard-badge[data-folder]:before {
+            content: attr(data-folder);
+            position: absolute;
+            top: -18px;
+            left: 5px;
+            font-size: 10px;
+            color: var(--text-color);
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        
+        .wildcard-badge[data-folder]:hover:before {
+            opacity: 1;
         }
         
         .prompt-preview select {
@@ -221,10 +276,15 @@
             margin-top: 35px;
         }
         
-        .copy-btn {
+        .btn-container {
             position: absolute;
             top: 10px;
             right: 10px;
+            display: flex;
+            gap: 8px;
+        }
+        
+        .action-btn-small {
             background-color: var(--bg-light);
             border: 1px solid var(--border-color);
             border-radius: var(--radius);
@@ -234,7 +294,7 @@
             transition: all 0.2s;
         }
         
-        .copy-btn:hover {
+        .action-btn-small:hover {
             background-color: var(--bg-medium);
         }
         
@@ -257,6 +317,9 @@
         <div class="section-header">
             <h2 class="section-title">Available Wildcards</h2>
         </div>
+        <div class="folders-container" id="folders-container">
+            <!-- Folders will be added dynamically -->
+        </div>
         <div class="wildcards-container" id="wildcards-container">
             <!-- Wildcard badges will be added dynamically -->
         </div>
@@ -267,7 +330,7 @@
             <h2 class="section-title">Template Editor</h2>
         </div>
         <div class="code-block template-container">
-            <textarea id="template-input" placeholder="Enter your prompt template with [Variable X] placeholders">a cute [Variable 1] in look out at [Variable 2] weather</textarea>
+            <textarea id="template-input" placeholder="Enter your prompt template with [W] placeholders">a cute [W] in a [W], [W]</textarea>
             <button id="add-wildcard-btn" class="action-btn">Add Wildcard</button>
         </div>
     </div>
@@ -280,10 +343,11 @@
             <div class="prompt-preview" id="prompt-preview">
                 <!-- Dynamic preview will be inserted here -->
             </div>
-            <button id="randomize-btn" class="action-btn">Randomize</button>
+            <div class="buttons-container">
+                <button id="randomize-btn" class="action-btn">Randomize</button>
+                <button id="generate-btn" class="action-btn">Generate</button>
+            </div>
         </div>
-        
-        <button id="generate-btn" class="btn">Generate Prompt</button>
     </div>
     
     <div id="output-container" class="output-container hidden section">
@@ -292,7 +356,10 @@
         </div>
         <div class="code-block" id="output-block">
             <pre id="output-text"></pre>
-            <button class="copy-btn" id="copy-btn">Copy</button>
+            <div class="btn-container">
+                <button class="action-btn-small" id="copy-btn">Copy</button>
+                <button class="action-btn-small" id="save-to-dayone-btn">Save to Day One</button>
+            </div>
         </div>
     </div>
     
@@ -300,15 +367,32 @@
         // Store the loaded wildcards data
         const wildcards = {};
         
+        // Store the visibility state of folders
+        const folderVisibility = {};
+        
         // Function to load wildcard files
         async function loadWildcards() {
             try {
                 const response = await fetch('/wildcards');
-                const files = await response.json();
+                const data = await response.json();
                 
-                const loadPromises = files.map(async (file) => {
+                // Initialize all folders as visible
+                if (data.folders) {
+                    Object.keys(data.folders).forEach(folder => {
+                        folderVisibility[folder] = true;
+                    });
+                }
+                
+                // Display folders first
+                displayFolders(data.folders || {});
+                
+                // Load root wildcards
+                const rootLoadPromises = (data.files || []).map(async (file) => {
                     if (file.endsWith('.txt')) {
+                        // Extract the name without the .txt extension
                         const name = file.replace('.txt', '');
+                        console.log(`Loading root wildcard: ${file} -> name: ${name}`);
+                        
                         const fileResponse = await fetch(`/wildcards/${file}`);
                         const text = await fileResponse.text();
                         const items = text.split('\n')
@@ -316,14 +400,51 @@
                             .filter(line => line && !line.startsWith('#'));
                         
                         wildcards[name] = items;
-                        return { name, count: items.length };
+                        return { name, count: items.length, folder: null };
                     }
                     return null;
                 });
                 
-                const loadedWildcards = (await Promise.all(loadPromises)).filter(Boolean);
-                displayWildcards(loadedWildcards);
+                // Load folder wildcards
+                const folderLoadPromises = [];
+                
+                if (data.folders) {
+                    Object.entries(data.folders).forEach(([folder, files]) => {
+                        files.forEach(file => {
+                            if (file.endsWith('.txt')) {
+                                const name = file.replace('.txt', '');
+                                console.log(`Loading folder wildcard: ${folder}/${file} -> name: ${name}`);
+                                
+                                const promise = fetch(`/wildcards/${folder}/${file}`)
+                                    .then(response => response.text())
+                                    .then(text => {
+                                        const items = text.split('\n')
+                                            .map(line => line.trim())
+                                            .filter(line => line && !line.startsWith('#'));
+                                        
+                                        wildcards[name] = items;
+                                        return { name, count: items.length, folder };
+                                    })
+                                    .catch(err => {
+                                        console.error(`Error loading ${folder}/${file}:`, err);
+                                        return null;
+                                    });
+                                
+                                folderLoadPromises.push(promise);
+                            }
+                        });
+                    });
+                }
+                
+                // Wait for all wildcards to load
+                const rootWildcards = (await Promise.all(rootLoadPromises)).filter(Boolean);
+                const folderWildcards = (await Promise.all(folderLoadPromises)).filter(Boolean);
+                
+                // Combine and display all wildcards
+                const allWildcards = [...rootWildcards, ...folderWildcards];
+                displayWildcards(allWildcards);
                 updatePromptPreview();
+                
             } catch (error) {
                 console.error('Error loading wildcards:', error);
                 // Fallback: Load directly from known files if server endpoint fails
@@ -344,7 +465,7 @@
                         .filter(line => line && !line.startsWith('#'));
                     
                     wildcards[name] = items;
-                    return { name, count: items.length };
+                    return { name, count: items.length, folder: null };
                 } catch (err) {
                     console.error(`Error loading ${name}.txt:`, err);
                     return null;
@@ -356,17 +477,149 @@
             updatePromptPreview();
         }
         
+        // Display available folders with checkboxes
+        function displayFolders(folders) {
+            const container = document.getElementById('folders-container');
+            container.innerHTML = '';
+            
+            Object.keys(folders).forEach(folderName => {
+                const folderItem = document.createElement('div');
+                folderItem.className = 'folder-item';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'folder-checkbox';
+                checkbox.checked = folderVisibility[folderName];
+                checkbox.dataset.folder = folderName;
+                
+                checkbox.addEventListener('change', () => {
+                    // Update visibility state
+                    folderVisibility[folderName] = checkbox.checked;
+                    
+                    // Update display of wildcard badges based on folder visibility
+                    document.querySelectorAll(`.wildcard-badge[data-folder="${folderName}"]`).forEach(badge => {
+                        badge.style.display = checkbox.checked ? 'flex' : 'none';
+                    });
+                });
+                
+                const label = document.createElement('span');
+                label.className = 'folder-name';
+                label.textContent = folderName;
+                
+                folderItem.appendChild(checkbox);
+                folderItem.appendChild(label);
+                container.appendChild(folderItem);
+            });
+        }
+        
         // Display available wildcards as badges
         function displayWildcards(wildcardsList) {
             const container = document.getElementById('wildcards-container');
             container.innerHTML = '';
             
-            wildcardsList.forEach(({ name, count }) => {
+            wildcardsList.forEach(({ name, count, folder }) => {
                 const badge = document.createElement('div');
                 badge.className = 'wildcard-badge';
                 badge.textContent = `${name} (${count})`;
+                
+                // Store the name directly on the badge element for easier access
+                badge.dataset.wildcardName = name;
+                
+                // If this wildcard belongs to a folder, add a data attribute and apply visibility
+                if (folder) {
+                    badge.dataset.folder = folder;
+                    badge.style.display = folderVisibility[folder] ? 'flex' : 'none';
+                }
+                
+                // Make the badge clickable to add the wildcard to the template
+                badge.addEventListener('click', function() {
+                    // Add this specific wildcard to the template
+                    const wildcardName = this.dataset.wildcardName;
+                    console.log(`Clicked on wildcard badge: ${wildcardName}`);
+                    
+                    // Use a simplified direct approach
+                    addSpecificWildcard(wildcardName);
+                });
+                
                 container.appendChild(badge);
             });
+        }
+        
+        // Simplified function specifically for adding a named wildcard
+        function addSpecificWildcard(wildcardName) {
+            console.log("addSpecificWildcard called with:", wildcardName);
+            
+            const templateInput = document.getElementById('template-input');
+            const cursorPos = templateInput.selectionStart;
+            const currentText = templateInput.value;
+            
+            // Create the wildcard text with the specific name
+            const wildcardText = `[${wildcardName}]`;
+            console.log("Wildcard text to insert:", wildcardText);
+            
+            // Format with commas based on position
+            let insertText;
+            if (cursorPos === 0) {
+                insertText = wildcardText + ", ";
+            } else {
+                insertText = ", " + wildcardText;
+            }
+            
+            // Insert at cursor position
+            const newText = cursorPos !== undefined && cursorPos >= 0
+                ? currentText.substring(0, cursorPos) + insertText + currentText.substring(cursorPos)
+                : currentText + insertText;
+            
+            templateInput.value = newText;
+            
+            // Update cursor position
+            if (cursorPos !== undefined) {
+                templateInput.focus();
+                templateInput.selectionStart = cursorPos + insertText.length;
+                templateInput.selectionEnd = cursorPos + insertText.length;
+            }
+            
+            // Update preview
+            updatePromptPreview();
+        }
+        
+        // Add a generic wildcard to the template at cursor position
+        function addWildcardToTemplate(wildcardName = null) {
+            const templateInput = document.getElementById('template-input');
+            const cursorPos = templateInput.selectionStart;
+            const currentText = templateInput.value;
+            
+            console.log("In addWildcardToTemplate, received wildcardName:", wildcardName);
+            
+            // Just use the generic [W] wildcard
+            const wildcardContent = "[W]";
+            
+            // Format with commas based on position  
+            let insertText;
+            if (cursorPos === 0) {
+                insertText = wildcardContent + ", ";
+            } else {
+                insertText = ", " + wildcardContent;
+            }
+            
+            console.log("Text to insert:", insertText);
+            
+            // Insert at cursor position
+            const newText = cursorPos !== undefined && cursorPos >= 0
+                ? currentText.substring(0, cursorPos) + insertText + currentText.substring(cursorPos)
+                : currentText + insertText;
+            
+            templateInput.value = newText;
+            
+            // Update cursor position
+            if (cursorPos !== undefined) {
+                templateInput.focus();
+                templateInput.selectionStart = cursorPos + insertText.length;
+                templateInput.selectionEnd = cursorPos + insertText.length;
+            }
+            
+            // Update preview
+            updatePromptPreview();
         }
         
         // Parse template to find variable placeholders
@@ -379,7 +632,9 @@
                 variables.push({
                     fullMatch: match[0],
                     name: match[1],
-                    position: match.index
+                    position: match.index,
+                    // Check if the variable name is a known wildcard
+                    isNamedWildcard: Object.keys(wildcards).includes(match[1])
                 });
             }
             
@@ -405,7 +660,7 @@
                 htmlContent += template.substring(lastIndex, variable.position);
                 
                 // Add dropdown for the variable
-                htmlContent += createDropdown(`variable-${index}`, variable.name);
+                htmlContent += createDropdown(`variable-${index}`, variable.name, variable.isNamedWildcard);
                 
                 lastIndex = variable.position + variable.fullMatch.length;
             });
@@ -414,10 +669,36 @@
             htmlContent += template.substring(lastIndex);
             
             previewElement.innerHTML = htmlContent;
+            
+            // Add event listeners to all the new dropdowns
+            document.querySelectorAll('.prompt-preview select').forEach(dropdown => {
+                dropdown.addEventListener('change', () => {
+                    // Auto-update the generated prompt when dropdown changes
+                    const finalPrompt = generatePrompt();
+                    if (document.getElementById('output-container').classList.contains('hidden') === false) {
+                        displayOutput(finalPrompt);
+                    }
+                });
+            });
+            
+            // Auto-update the generated prompt
+            const finalPrompt = generatePrompt();
+            if (document.getElementById('output-container').classList.contains('hidden') === false) {
+                displayOutput(finalPrompt);
+            }
         }
         
         // Create a dropdown for variable selection
-        function createDropdown(id, variableName) {
+        function createDropdown(id, variableName, isNamedWildcard) {
+            // If this is a named wildcard (e.g. [animals]), use that wildcard and disable the dropdown
+            if (isNamedWildcard) {
+                let html = `<select id="${id}" data-variable="${variableName}" disabled>`;
+                html += `<option value="${variableName}" selected>${variableName}</option>`;
+                html += '</select>';
+                return html;
+            }
+            
+            // Otherwise, create a normal dropdown
             let html = `<select id="${id}" data-variable="${variableName}">`;
             
             Object.keys(wildcards).forEach(wildcard => {
@@ -511,7 +792,7 @@
         
         // Randomize dropdowns selections
         function randomizeWildcards() {
-            const dropdowns = document.querySelectorAll('.prompt-preview select');
+            const dropdowns = document.querySelectorAll('.prompt-preview select:not([disabled])');
             const wildcardKeys = Object.keys(wildcards);
             
             if (wildcardKeys.length === 0) {
@@ -523,9 +804,63 @@
                 const randomIndex = Math.floor(Math.random() * wildcardKeys.length);
                 dropdown.value = wildcardKeys[randomIndex];
             });
+            
+            // Auto-update the generated prompt after randomization
+            const finalPrompt = generatePrompt();
+            if (document.getElementById('output-container').classList.contains('hidden') === false) {
+                displayOutput(finalPrompt);
+            }
         }
         
         // Event Listeners
+        // Save prompt to Day One
+        function saveToJournal(promptText) {
+            if (!promptText) {
+                console.error('No prompt text provided');
+                return;
+            }
+            
+            // Format the prompt as a markdown code block with proper escaping
+            const formattedPrompt = "\\`\\`\\`\n" + promptText + "\n\\`\\`\\`";
+            
+            // Create the command with hardcoded values for Journal and Tag
+            const command = `dayone2 new "${formattedPrompt}" --journal="Image Prompts" --tags "Image Prompt"`;
+            
+            // Send the command to the server
+            fetch('/save-to-dayone', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ command: command })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to save to Day One');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Show success message
+                const saveBtn = document.getElementById('save-to-dayone-btn');
+                const originalText = saveBtn.textContent;
+                
+                saveBtn.textContent = 'Saved!';
+                setTimeout(() => {
+                    saveBtn.textContent = originalText;
+                }, 2000);
+                
+                // If Day One URL is returned, open it
+                if (data.openUrl) {
+                    window.location.href = data.openUrl;
+                }
+            })
+            .catch(error => {
+                console.error('Error saving to Day One:', error);
+                alert('Failed to save to Day One: ' + error.message);
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             // Load wildcards when page loads
             loadWildcards();
@@ -545,8 +880,17 @@
                 copyToClipboard(text);
             });
             
+            // Save to Day One button click handler
+            document.getElementById('save-to-dayone-btn').addEventListener('click', () => {
+                const text = document.getElementById('output-text').textContent;
+                saveToJournal(text);
+            });
+            
             // Add Wildcard button click handler
-            document.getElementById('add-wildcard-btn').addEventListener('click', addWildcardToTemplate);
+            document.getElementById('add-wildcard-btn').addEventListener('click', () => {
+                // Call with null to use the default [W] wildcard
+                addWildcardToTemplate(null);
+            });
             
             // Randomize button click handler
             document.getElementById('randomize-btn').addEventListener('click', randomizeWildcards);

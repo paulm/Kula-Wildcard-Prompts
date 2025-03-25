@@ -1,0 +1,30 @@
+Silky, smooth, soft, luxurious texture, fine silk fabric
+Velvety, plush, dense, velvet fabric
+Suede, soft, warm, slightly fuzzy texture
+Furry, fluffy, cozy, warm texture, plush faux fur material
+Satin, sleek, glossy, smooth texture, satin fabric
+Pebbled, slightly raised, bumpy, irregular texture, pebbles or cobblestones
+Mossy, soft, damp, spongy texture, fresh green moss
+# Knitted, textured, warm, comfortable, soft yarn
+# Crinkled, slightly uneven, wavy, pleated texture, crinkling paper or fabric
+Smooth wood, polished, even, warm texture, well-sanded wooden object
+Cool marble, smooth, polished, slightly cold texture, marble surface
+Frosted glass, slightly rough, matte, cool texture, sandblasted or etched glass
+Bubbly foam, lightweight, airy, cushiony texture, memory foam or sponge
+Plush carpet, dense, soft, cozy texture, high-pile carpet
+Woven fabric, textured surface, intricate interlacing, woven basket or tapestry
+Soft sand, fine, granular, slightly warm texture, dry sand
+# Rubber grip, firm, slightly flexible, mildly textured surface, rubberized handle or mat
+Fresh snow, cold, powdery, slightly crunchy texture, freshly fallen snow
+# Beaded surface, small, round, smooth elements, beaded pillow or string of pearls
+Honeycomb, regular, geometric pattern, raised edges, indented cells, honeycomb structure
+Leather, smooth, slightly supple, warm texture, high-quality leather material
+Feathery, soft, delicate, airy texture, bird's feather
+Lace, intricate, delicate, slightly textured surface, lace fabric or doily
+Rippled water, fluid, undulating, slightly cool texture, gently rippling water
+Brushed metal, smooth, cool, slightly matte texture, brushed metal surface
+# Padded quilting, cushioned, soft, slightly raised texture, quilted jacket or blanket
+# Corduroy, ridged, soft, slightly fuzzy texture, corduroy material
+Wet clay, smooth, malleable, slightly cool texture, wet clay surface
+Rough stone, slightly uneven, coarse, cool texture, unpolished or weathered stone
+# Sequins, small, shiny, slightly raised elements, sparkling texture, sequined garment or accessory

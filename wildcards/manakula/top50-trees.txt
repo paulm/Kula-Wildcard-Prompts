@@ -1,0 +1,50 @@
+Oak
+Maple
+Pine
+Birch
+Cherry
+Dogwood
+Elm
+Willow
+Redwood
+Sequoia
+Bonsai
+Palm
+Eucalyptus
+Beech
+Chestnut
+Cedar
+Sycamore
+Magnolia
+Olive
+Cypress
+Fig
+Apple
+Poplar
+Fir
+Spruce
+Jacaranda
+Banyan
+Baobab
+Ginkgo
+Katsura
+Black Walnut
+Crape Myrtle
+Pecan
+Hawthorn
+Hornbeam
+Silver Linden
+Tulip tree
+Tamarind
+Neem
+Yellowwood
+London Plane
+Sugar Gum
+Japanese Zelkova
+Southern Live Oak
+Black Locust
+Monkey Puzzle
+Quaking Aspen
+Royal Poinciana
+Eastern Hemlock
+Indian Rosewood
